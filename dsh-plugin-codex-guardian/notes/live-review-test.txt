@@ -1,0 +1,5 @@
+[guardian-live] allow: kind=allow
+codex-guardian: decision fp=ca397d72f7fa tool=bash outcome=allow risk=low model=codex-auto-review
+[guardian-live] deny: kind=deny
+codex-guardian: decision fp=c20f59256de0 tool=bash outcome=deny risk=critical model=codex-auto-review
+[guardian-live] PASS; no proposed command was executed

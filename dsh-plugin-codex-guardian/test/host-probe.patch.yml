@@ -1,0 +1,10 @@
+- id: tools
+  config:
+    mode: both
+- id: headless-startup
+  disabled: true
+- id: headless-runner
+  disabled: true
+- insert:
+    - id: guardian-host-probe
+      name: ./host-probe-plugin.mjs

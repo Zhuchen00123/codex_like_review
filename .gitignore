@@ -1,0 +1,22 @@
+# Local DSH profiles, sessions, credentials and copied test runtimes
+.dsh-*/
+.npm-*/
+.guardian-control-test-*/
+**/node_modules/
+**/.credentials.yaml
+**/auth.json
+**/guardian/settings.json
+**/guardian/reviews.json
+.env
+.env.*
+!.env.example
+
+# Local handoff and investigation material
+BRIEF.md
+reference/
+dsh-plugin-codex-guardian/notes/scratch/
+dsh-plugin-codex-guardian/notes/host-scratch/
+
+# Generated packages and logs
+*.tgz
+*.log

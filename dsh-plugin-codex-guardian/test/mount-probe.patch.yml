@@ -1,0 +1,5 @@
+- id: web-startup
+  disabled: true
+- insert:
+    - id: guardian-mount-probe
+      name: ./mount-probe-plugin.mjs

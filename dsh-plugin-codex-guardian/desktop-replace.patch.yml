@@ -1,0 +1,11 @@
+# For a desktop profile that already composes the official auto-review row.
+# Merge these entries into that profile's cordis.patch.yml, preserving existing entries.
+- id: auto-review
+  disabled: true
+- insert:
+    - id: codex-guardian
+      name: F:/codexprojects/codex_like_review/dsh-plugin-codex-guardian/src/index.js
+      config:
+        enabled: true
+        usageGuard: true
+        maxReviewsPerHour: 120

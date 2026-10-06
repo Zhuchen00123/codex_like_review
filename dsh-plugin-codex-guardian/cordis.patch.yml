@@ -1,0 +1,6 @@
+# Independent Auto integration. Disable the official experimental Auto bundle first.
+- insert:
+    - id: codex-guardian
+      name: dsh-plugin-codex-guardian
+      config:
+        enabled: true

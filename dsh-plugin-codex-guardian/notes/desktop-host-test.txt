@@ -1,0 +1,8 @@
+[guardian-host] test plugin mounted
+[guardian-host] allow: tool body executed once
+[guardian-host] deny: tool body did not execute; rationale returned
+[guardian-host] unavailable: real approval service invoked answerer and persisted decision
+(node:50900) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `DeepSeek Harness --trace-warnings ...` to show where the warning was created)
+[guardian-host] PTC: inner allow executed; inner deny blocked; outer transport was not double-reviewed
+[guardian-host] unload: workspace-write restored; Auto removed; PASS

@@ -1,0 +1,4 @@
+(node:24800) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+[guardian-mount] shipped codex-guardian fiber=ACTIVE; Auto registered
+(Use `DeepSeek Harness --trace-deprecation ...` to show where the warning was created)
+[guardian-mount] shipped plugin fiber disposal restored workspace-write and removed Auto; PASS

@@ -1,0 +1,47 @@
+{
+  "name": "dsh-plugin-codex-guardian",
+  "version": "0.3.0",
+  "description": "Independent DSH Auto review integration using Codex Guardian policy and codex-auto-review.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./approvals": "./src/approvals.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "client.js",
+    "data",
+    "cordis.patch.yml",
+    "desktop-replace.patch.yml",
+    "scripts",
+    "notes/REPLACEMENT-VERIFICATION.md",
+    "notes/CONTROL-VERIFICATION.md",
+    "notes/control-page.jpg",
+    "notes/desktop-host-test.txt",
+    "notes/desktop-mount-test.txt",
+    "notes/live-review-test.txt",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test test/auto-review.test.mjs test/reviewer.test.mjs test/control.test.mjs",
+    "test:legacy": "node test/plugin-smoke.mjs --offline",
+    "probe": "node test/route-probe.mjs"
+  },
+  "license": "MIT",
+  "peerDependencies": { "@deepseek-ai/dsh-typert-protocol": "0.2.0-rc.2" },
+  "engines": {
+    "node": ">=22"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": ["@deepseek-ai/dsh-client-locale", "@deepseek-ai/dsh-client-ui-plugin-manager", "@deepseek-ai/dsh-client-connection"]
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
