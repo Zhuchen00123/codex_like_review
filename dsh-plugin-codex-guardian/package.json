@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-codex-guardian",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Independent DSH Auto review integration using Codex Guardian policy and codex-auto-review.",
   "type": "module",
   "main": "./src/index.js",
@@ -8,11 +8,13 @@
     ".": "./src/index.js",
     "./approvals": "./src/approvals.js",
     "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
     "./package.json": "./package.json"
   },
   "files": [
     "src",
     "client.js",
+    "locale",
     "data",
     "cordis.patch.yml",
     "desktop-replace.patch.yml",

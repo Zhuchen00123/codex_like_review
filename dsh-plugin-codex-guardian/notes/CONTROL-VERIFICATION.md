@@ -1,4 +1,4 @@
-# 0.3.0 模型选择与插件控制页验证
+# 0.3.1 模型选择、插件控制页与第三方分类验证
 
 2026-10-06；只修改项目源码与工作区隔离测试目录，正式 DSH profile、凭据、官方插件和订阅插件未修改。
 
@@ -19,7 +19,7 @@
 [guardian-mount] shipped plugin fiber disposal restored workspace-write and removed Auto; PASS
 ```
 
-浏览器操作进入真实 DSH **插件 → Codex Guardian**，未创建单独的 mock 页面。页面通过宿主 React、`plugins.item` slot、客户端模块资源和认证 Connection RPC 加载。
+0.3.0 浏览器操作进入真实 DSH **插件 → Codex Guardian**，未创建单独的 mock 页面。页面通过宿主 React、客户端模块资源和认证 Connection RPC 加载；0.3.1 将页面从 `plugins.item`（宿主固定归类到“官方”）迁移到 `plugins.bundle.config`，并补充 `locale/en.json`、`locale/zh.json`，由宿主按已安装第三方 bundle 展示。
 
 已实际验证：
 
@@ -36,6 +36,10 @@
 - 刷新模型列表，页面反馈 `Codex: live · DSH: available`，保留当前选择。
 
 模型目录刷新请求和缓存回退均有实现；账号未列出或拒绝的模型不会自动切换到其他模型。
+
+正式 profile 迁移验证：Guardian 0.3.1 目录安装到 `C:/Users/15185/.dsh/plugins/dsh-plugin-codex-guardian/0.3.1`，profile 通过 dependency、bundle 和 junction 注册；迁移前已有的其他 profile patch 行逐项保持不变，只把 Guardian 的源码直插行替换成 bundle 配置。旧配置保存为 `cordis.patch.yml.bak-guardian-managed-*` 与 `package.json.bak-guardian-managed-*`。
+
+分类迁移后的正式桌面重载受本轮 Codex 自动审批额度限制，未能再通过浏览器刷新取得第二张界面快照；静态 bundle 清单、locale 元数据、patch 组成和已有 DSH 实例中的控制服务均已检查。重启 DSH 后应从“已安装”区域打开 Guardian 详情页。
 
 ![实际控制页和 Guardian 连接测试](control-page.jpg)
 

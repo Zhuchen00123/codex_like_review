@@ -15,10 +15,12 @@ if (fs.existsSync(profile)) throw new Error(`Profile already exists; no files ch
 fs.mkdirSync(profile, { recursive: true })
 fs.writeFileSync(path.join(profile, 'package.json'), JSON.stringify({
   name: 'dsh-profile-desktop', private: true,
-  dependencies: {},
-  dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] } },
+  dependencies: { 'dsh-plugin-codex-guardian': `link:${pluginRoot.replaceAll('\\', '/')}` },
+  dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-plugin-codex-guardian'] } },
 }, null, 2)+'\n', { flag: 'wx' })
-fs.writeFileSync(path.join(profile, 'cordis.patch.yml'), `- insert:\n    - id: codex-guardian\n      name: ${JSON.stringify(path.join(pluginRoot, 'src', 'index.js').replaceAll('\\', '/'))}\n      config:\n        enabled: true\n        usageGuard: true\n        maxReviewsPerHour: 120\n`, { flag: 'wx' })
+fs.mkdirSync(path.join(profile, 'node_modules'), { recursive: true })
+fs.symlinkSync(pluginRoot, path.join(profile, 'node_modules', 'dsh-plugin-codex-guardian'), process.platform === 'win32' ? 'junction' : 'dir')
+fs.writeFileSync(path.join(profile, 'cordis.patch.yml'), `- id: codex-guardian\n  config:\n    enabled: true\n    usageGuard: true\n    maxReviewsPerHour: 120\n`, { flag: 'wx' })
 fs.writeFileSync(path.join(profile, 'pnpm-workspace.yaml'), 'packages:\n  - .\n', { flag: 'wx' })
 const quote = (value) => value.replaceAll("'", "''")
 const launcher = `$ErrorActionPreference = 'Stop'

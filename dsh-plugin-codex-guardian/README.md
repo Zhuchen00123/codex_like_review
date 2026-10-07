@@ -2,7 +2,7 @@
 
 独立替代 DSH 官方 Auto review 的插件。停用 `@deepseek-ai/dsh-experimental-auto-review` 后，由本插件注册桌面端的 Auto 权限入口，在工具执行前使用 Codex Guardian 策略审查。默认模型为 `codex-auto-review`，也可以选择 Codex 订阅模型或 DSH 已配置模型。
 
-版本 **0.3.0**；目标宿主为桌面端 **0.2.0-rc.2**。审查传输使用 Node 内置模块，控制页复用宿主的协议服务、React 和连接；不修改官方插件、订阅插件或模型注册表。
+版本 **0.3.1**；目标宿主为桌面端 **0.2.0-rc.2**。审查传输使用 Node 内置模块，控制页复用宿主的协议服务、React 和连接；不修改官方插件、订阅插件或模型注册表。
 
 ## 快速测试
 
@@ -24,7 +24,7 @@ node scripts/prepare-desktop.mjs F:/your-workspace/guardian-test-home
 
 ## 插件控制页
 
-已接入本地源码的配置升级到 0.3.0 后，退出并重启 DSH 即可加载控制页，无需重新准备 profile。在左侧点击 **插件 → Codex Guardian**；也可以从设置的插件入口进入。
+已接入本地源码的配置升级到 0.3.1 后，退出并重启 DSH 即可加载控制页。插件作为 profile 的已安装第三方 bundle 出现在插件页的“已安装”区域；打开 **Codex Guardian** 详情页即可进入控制页。
 
 1. 选择 **Codex 订阅模型** 或 **DSH 已配置模型**。DSH 来源需要选择供应商；模型列表读取宿主已注册模型，Codex 列表优先读取本机目录缓存，可点击刷新。两种来源都允许手动填写模型 ID。
 2. 推理强度默认使用模型默认值。模型不支持所选强度时会回退人工，建议先使用默认并测试。
@@ -39,9 +39,9 @@ node scripts/prepare-desktop.mjs F:/your-workspace/guardian-test-home
 
 ## 替换方式
 
-在 DSH 的插件设置中停用官方 `@deepseek-ai/dsh-experimental-auto-review`，安装/启用本包。包内的 `dsh.bundle.patch` 插入 `codex-guardian` 行，注册 Auto。官方与本插件不能同时拥有 Auto；重复注册会明确报错。
+在 DSH 的插件设置中停用官方 `@deepseek-ai/dsh-experimental-auto-review`，将本包作为 profile dependency 和 bundle 安装/启用。包内的 `dsh.bundle.patch` 插入 `codex-guardian` 行，注册 Auto；客户端控制页挂载到 `plugins.bundle.config`，这样 DSH 会按已安装第三方 bundle 分类。官方与本插件不能同时拥有 Auto；重复注册会明确报错。
 
-本地源码接入时，`desktop-replace.patch.yml` 提供禁用官方 `auto-review` 行和插入本插件的示例。合并到 profile 的 `cordis.patch.yml` 时保留已有条目。示例只适用于原配置包含官方 `auto-review` 行的情况；新建隔离配置无需这条禁用项。
+本地源码接入时，先把 `dsh-plugin-codex-guardian` 写入 profile 的 `dependencies` 和 `dsh.profile.bundles`，再在 profile patch 中用 `id: codex-guardian` 修改配置。bundle 已负责插入工具审查入口，不要再次插入同一行。控制页通过 `plugins.bundle.config` 关联该包；`plugins.item` 则固定进入宿主的“官方”区域。`desktop-replace.patch.yml` 提供官方 Auto 禁用与 bundle 配置覆盖示例。
 
 正式桌面配置尚未自动切换。本次宿主测试与新状态都位于工作区中。
 
@@ -105,7 +105,7 @@ npm run test:legacy
 node test/live-review.mjs   # 真模型审批测试；不会执行待审命令
 ```
 
-44 项自动测试及 20 项历史回归测试通过。0.3.0 控制页已在 rc2 原版桌面 profile 的浏览器界面验证，并实测 `deepseek-flash` 与自选 `gpt-6-luna` 两条审查来源；生产入口挂载/卸载检查通过。0.2.0 的普通工具、PTC、人工审批和真实 Guardian allow/deny 记录保留。
+44 项自动测试及 20 项历史回归测试通过。0.3.0 控制页已在 rc2 原版桌面 profile 的浏览器界面验证，并实测 `deepseek-flash` 与自选 `gpt-6-luna` 两条审查来源；0.3.1 已改为已安装第三方 bundle 分类并完成正式 profile 的原子迁移。0.2.0 的普通工具、PTC、人工审批和真实 Guardian allow/deny 记录保留。
 
 控制页证据和限制见 [notes/CONTROL-VERIFICATION.md](notes/CONTROL-VERIFICATION.md)；先前的执行链验证见 [notes/REPLACEMENT-VERIFICATION.md](notes/REPLACEMENT-VERIFICATION.md)。当前测试使用桌面原版运行时副本和浏览器界面；Electron 窗口内的人工批准按钮尚未点击验证。
 

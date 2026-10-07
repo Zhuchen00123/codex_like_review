@@ -2,7 +2,7 @@
 
 独立替代 DSH 官方 Auto review 的插件。使用 Guardian 策略，在工具执行前审查操作；支持 Codex 订阅模型和 DSH 已配置模型，并提供插件控制页。
 
-当前插件版本 **0.3.0**，目标宿主 **DSH 桌面端 0.2.0-rc.2**。
+当前插件版本 **0.3.1**，目标宿主 **DSH 桌面端 0.2.0-rc.2**。
 
 - [安装、模型选择和控制页说明](dsh-plugin-codex-guardian/README.md)
 - [控制页与模型路由验证](dsh-plugin-codex-guardian/notes/CONTROL-VERIFICATION.md)
@@ -21,5 +21,7 @@ npm run test:legacy
 ## 仓库范围
 
 版本管理包含插件源码、策略快照、测试、准备脚本和验证文档。本地 DSH 配置、登录凭据、会话、缓存、临时运行时、打包产物和个人交接简报不进入仓库。
+
+Guardian 作为 profile 的已安装第三方 bundle 注册，因此会显示在 DSH 插件页的“已安装”区域；控制页挂在 bundle 详情页，不会被归入“官方”卡片。
 
 认证来自本机已有登录，仓库不包含 token。Codex 直连订阅后端的第三方可用性和免费计费未确认；审查异常会转人工审批。

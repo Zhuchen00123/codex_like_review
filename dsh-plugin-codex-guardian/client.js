@@ -68,7 +68,8 @@ window.__ModuleLoader__.load({
             snapshot.recent.length ? h('div', { className: 'guardian-table' }, h('table', null, h('thead', null, h('tr', null, ['时间', '工具', '结果', '模型', '耗时', 'Token'].map((title) => h('th', { key: title, scope: 'col' }, title)))), h('tbody', null, snapshot.recent.slice(0, 20).map((row, index) => h('tr', { key: `${row.time}-${index}` }, [new Date(row.time).toLocaleTimeString(), row.tool, row.outcome === 'allow' ? '允许' : row.outcome === 'deny' ? '拒绝' : `转人工 (${row.reason ?? 'unknown'})`, row.model ?? row.requestedModel, row.elapsedMs == null ? '—' : `${row.elapsedMs} ms`, row.totalTokens ?? '—'].map((value, i) => h('td', { key: i }, value))))))) : h('p', null, '暂无审查记录。'), button('清空审查记录', 'clear', async () => { accept(await rpc('clearHistory')); setNotice('审查记录已清空。') })))
       }
       ctx.effect(() => ctx.locale.register('guardian.control', { zh: { title: 'Codex Guardian' }, en: { title: 'Codex Guardian' } }))
-      ctx.effect(() => ctx.slots.inject('plugins.item', () => ctx.slots.register({ name: 'plugins.item', id: 'codex-guardian', order: 35, label: () => 'Codex Guardian', locale: 'guardian.control' }, Card)))
+      // plugins.item is reserved for the host's Official section.
+      ctx.effect(() => ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({ name: 'plugins.bundle.config', key: 'dsh-plugin-codex-guardian', locale: 'guardian.control' }, Card)))
     }
     return { inject: ['slots', 'locale', 'connection'], apply }
   },
