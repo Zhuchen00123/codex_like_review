@@ -64,7 +64,10 @@ export function mountAutoReview(ctx, configuration, reviewer, options = {}) {
     active.add(completed.promise)
     try {
       let action, fallback
-      try { action = buildExecutionContext(exec, settings) } catch { fallback = 'context-unavailable' }
+      try {
+        action = buildExecutionContext(exec, settings)
+        action.context.environment.execution_access = 'DSH legacy Auto preset: full host access; allowed tools execute immediately'
+      } catch { fallback = 'context-unavailable' }
       let state
       if (action) {
         state = turns.get(agent.session)

@@ -1,125 +1,98 @@
-# dsh-plugin-codex-guardian
+# codexlikereview
 
-独立替代 DSH 官方 Auto review 的插件。停用 `@deepseek-ai/dsh-experimental-auto-review` 后，由本插件注册桌面端的 Auto 权限入口，在工具执行前使用 Codex Guardian 策略审查。默认模型为 `codex-auto-review`，也可以选择 Codex 订阅模型或 DSH 已配置模型。
+DSH 桌面端的独立第三方审批插件，版本 **0.4.0**，目标宿主 **0.2.0-rc.2**。权限模式和控制页名称为 `codexlikereview`；npm 包名 `dsh-plugin-codex-guardian`、loader ID `codex-guardian` 和已有设置目录保留，便于从 0.3.x 升级。
 
-版本 **0.3.1**；目标宿主为桌面端 **0.2.0-rc.2**。审查传输使用 Node 内置模块，控制页复用宿主的协议服务、React 和连接；不修改官方插件、订阅插件或模型注册表。
+默认审查模型为 `codex-auto-review`，也支持自选 Codex 订阅模型或 DSH 已配置模型。插件复用 Codex 的审批策略快照和浏览器专项策略，不修改官方插件、订阅插件源码或模型注册表。
 
-## 快速测试
+## 审批模式
 
-本工作区已经准备好隔离的桌面测试配置。完全退出 DSH（包括托盘进程），运行：
+在已有会话的权限菜单选择 **Codexlikereview**。模式 ID 为 `codexlikereview`，宿主会把菜单标签的首字母转为大写。该模式使用 `workspace-write + ask`：
+
+- 沙箱内已获宿主允许的操作直接执行，不额外调用审批模型。
+- 宿主产生批准请求时，例如一次沙箱越权或被标记为需要批准的工具调用，先交给审查模型。
+- 允许仅作用于这一次请求，工具执行后不会把会话改成完整主机访问。
+- 模型拒绝时不执行，并向主代理返回原因及禁止绕工具重试的指令。
+- 网络、凭据、超时、上下文、预算或判定格式异常时转宿主人工审批；没有人工通道时不执行。
+- 其他宿主的执行前拒绝、工具能力限制和人工 `never` 策略保持有效。
+
+新模式是当前会话选项，不列入未来会话的默认权限选项。原有 Auto 选择在会话恢复时迁移为工作区沙箱；其他权限选择保持原状。卸载会取消待审请求，恢复普通工作区权限，并移除该模式。
+
+DSH 的沙箱和网络限制仍由 DSH 实现。未产生批准请求的动作不会触发模型审查；敏感 MCP 或浏览器工具需要宿主自身的批准设置。本插件没有复刻 Codex 的全部执行框架。
+
+## 只读调查
+
+默认允许审查模型调用唯一的 `guardian_inspect` 工具，支持：
+
+- 文件元数据、目录列表、有限文本读取；
+- 工作区内的 Git 状态和远程地址信息。
+
+范围仅限当前工作目录及待审参数中明确的路径。解析真实路径后再次检查范围，阻止目录链接逃逸和网络共享路径；拒绝凭据、私钥、环境变量文件、认证及浏览器私有存储内容读取。Git 查询关闭交互、可选写锁、fsmonitor 和 hooks，远程 URL 移除认证和查询信息。
+
+每次审查最多 **3 轮、6 次调查**；文本读取最多 8192 字节，目录最多展示 40 项。工具结果带有不可信来源和截断标记，不能建立用户授权。调查超限、取消或异常不会自动放行。控制页可以关闭调查；关闭后模型只根据传入上下文判断。
+
+Codex 和 DSH 模型使用同样的有限调查接口。不会调用主代理的工具执行器，也不会执行待审命令。
+
+## 被拒绝动作的一次批准重试
+
+在控制页展开 **拒绝动作 · 批准一次重试**：
+
+1. 选择被拒绝的动作，查看会话、工作目录、原因和完整参数。
+2. 点击 **批准此动作重试一次**。
+3. 回到对应会话发送“重试”，让代理重试完全相同的动作。
+
+点击批准本身不会执行动作。批准绑定会话、工作目录、工具、完整参数和原有授权上下文，只能消费一次；重试仍交给模型审查。单独的“重试”或“继续”等简短恢复消息不改变授权范围；其他新增指令会使原批准失效。参数、目录或会话变化后也不能复用。它不能跳过 critical 风险或策略的绝对拒绝。
+
+每个会话保留最近 10 个拒绝动作，全局最多 100 个，10 分钟后失效；只存在内存，重启或卸载即清空。审查历史文件不保存这些参数。
+
+## 模型与控制页
+
+插件在“已安装”区域显示 **codexlikereview**，打开详情页配置：
+
+1. 选择 **Codex 订阅模型** 或 **DSH 已配置模型**；DSH 来源需要供应商。两种来源都支持手动输入模型 ID。
+2. 选择推理强度、是否启用审批及只读调查，设置超时、预算、额度保护和拒绝阈值。
+3. 点击 **保存配置**，从下一次审查生效。运行中的请求保留配置快照；旧窗口草稿不能覆盖新配置。
+4. **测试已保存模型**仅发送合成的 git status 审查请求，不执行命令。允许或拒绝均代表取得了合法判定；不代表准确率。测试占用一次预算，5 秒内禁止重复测试。
+
+暂停后模式仍保留工作区沙箱，需要批准的动作转人工。恢复默认仅填写草稿，保存后才生效。
+
+设置位于 `$DSH_HOME/guardian/settings.json`；最近 200 条决策元数据位于 `reviews.json`。历史记录包含工具、结果、模型、耗时、token 数和调查次数，不包含工具参数、会话正文、原始模型回复或凭据。界面显示最近 20 条；预算按插件实例统计。
+
+## 安装与升级
+
+停用官方 `@deepseek-ai/dsh-experimental-auto-review`，将本包作为 profile dependency 和 bundle 安装/启用。控制页挂载到 `plugins.bundle.config`，由宿主归入第三方“已安装”区域。
+
+本地接入需要在 profile 的 `dependencies` 和 `dsh.profile.bundles` 中注册本包，并提供指向包目录的 node_modules 链接。bundle 已插入 `codex-guardian`，profile patch 只用 `id: codex-guardian` 覆盖配置，不要重复插入。参见 `desktop-replace.patch.yml`。
+
+从 0.3.x 更新 dependency 的安装目录及对应链接后，重启 DSH。已保存模型和预算设置会保留，新增的调查开关默认开启。源码升级不会自动修改正式 profile；本机正式配置的迁移按用户授权另行完成。
+
+准备全新隔离 home（在插件源码目录运行）：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File F:/codexprojects/codex_like_review/.dsh-guardian-desktop/launch-desktop.ps1
+node scripts/prepare-desktop.mjs F:/your-workspace/codexlike-test-home
 ```
 
-它把 DSH_HOME 指向工作区内的 `.dsh-guardian-desktop`。该配置未启用官方 Auto 插件。启动后，在权限菜单选择 Auto；主模型仍由 DSH 的账号/模型设置决定，审查模型在本插件控制页选择。隔离 home 不复制主会话模型的登录信息，需要时在测试配置中登录主模型。
+脚本拒绝覆盖已有 profile 或写入正式 `~/.dsh`，使用本地 dependency、bundle 和目录链接（Windows 使用 junction），无需 pnpm 安装。完全退出 DSH 后运行生成的 `launch-desktop.ps1`。不要使用旧系统 CLI 的 `dsh --profile desktop` 启动桌面配置。
 
-其他目录可通过下面的命令准备一个全新的测试 home；脚本拒绝覆盖已有 profile，也拒绝写入正式 `~/.dsh`：
+## 策略与模型路由
 
-```powershell
-node scripts/prepare-desktop.mjs F:/your-workspace/guardian-test-home
-```
+提示词由包内 `data/guardian-policy.json` 的 `policy_template` 填入 `policy` 后组成，并追加 JSON 判定输出约定。浏览器、Computer Use 和 node_repl 相关动作额外加入 `node_repl_policy`；一次批准重试额外提供由控制服务验证的用户批准标记。策略是固定快照，不会自动下载更新；高级配置可用 `policyFile` 替换，重新加载后生效。
 
-脚本把本包注册为 profile 的本地 dependency 和 bundle，并创建目录链接（Windows 使用 junction），不需要运行 pnpm 安装。桌面 profile 由 Electron 管理，不要用系统旧版 CLI 的 `dsh --profile desktop` 启动或安装。
+真实人类消息及来源正确的直接父代理指令建立授权；项目指令限制范围；工具结果、助手说明和压缩摘要不能扩大授权。待审参数与授权上下文超过限制时转人工；普通证据截断或省略会明确标记。
 
-## 插件控制页
+low/medium 的允许按策略执行；high 的允许需达到 medium 或 high 授权，并满足提示词的范围及专项规则；critical 不自动允许。冲突或无效判定转人工。同轮次连续拒绝 3 次，或最近 50 次中拒绝 10 次，中断本轮自动审批。
 
-已按下文注册 dependency 和 bundle 的配置升级到 0.3.1 后，退出并重启 DSH 即可加载控制页。旧版只通过源码路径插入插件的配置，需要先迁移为 bundle 安装方式。插件出现在插件页的“已安装”区域；打开 **Codex Guardian** 详情页即可进入控制页。
+Codex 来源直接使用 `POST https://chatgpt.com/backend-api/codex/responses`，`stream:true`、`store:false`，要求完整完成事件和准确的模型回显。只读现有 access token，不使用 refresh token、刷新凭据或写回凭据库。DSH 来源通过宿主 `llm` 和供应商认证，要求流正常结束。两种来源仅向模型提供有限调查工具。
 
-1. 选择 **Codex 订阅模型** 或 **DSH 已配置模型**。DSH 来源需要选择供应商；模型列表读取宿主已注册模型，Codex 列表优先读取本机目录缓存，可点击刷新。两种来源都允许手动填写模型 ID。
-2. 推理强度默认使用模型默认值。模型不支持所选强度时会回退人工，建议先使用默认并测试。
-3. 点击 **保存配置**；更改从下一次审查生效，已开始的请求保留原配置。多窗口同时编辑会检查版本，旧草稿不会覆盖新配置。
-4. 点击 **测试已保存模型**。它发送合成的 `git status` 审查请求，不执行命令。允许或拒绝都表示拿到了合法判定；这个按钮验证连接与输出格式，不评估模型准确率。每次测试占用一次预算，5 秒内不允许重复测试。
+第三方直连 Guardian 的免费计费和长期稳定性尚未确认。模型费用与额度按账号/供应商规则计算；可启用 usageGuard 和每小时预算。
 
-页面支持暂停审查、请求/总超时、重试次数、每小时预算、额度检查、拒绝阈值、恢复默认草稿和放弃修改。暂停时 Auto 继续存在，实际工具调用转人工审批；卸载插件会恢复工作区权限。
-
-配置保存在 `$DSH_HOME/guardian/settings.json`，已保存的可编辑值覆盖 loader 的对应配置；使用原子写入并在重启后恢复。恢复默认值仅填写草稿，需要保存才生效。订阅凭据、策略路径、代理和认证配置不通过控制页编辑。
-
-最近 200 条审查元数据保存在 `$DSH_HOME/guardian/reviews.json`，页面显示最近 20 条。记录工具名、决策、模型、耗时和 token 数，不保存参数、原始回复、授权消息或凭据。预算按插件实例统计，重启实例后重新计数。连接测试不记入实际工具审查历史。
-
-## 替换方式
-
-在 DSH 的插件设置中停用官方 `@deepseek-ai/dsh-experimental-auto-review`，将本包作为 profile dependency 和 bundle 安装/启用。包内的 `dsh.bundle.patch` 插入 `codex-guardian` 行，注册 Auto；客户端控制页挂载到 `plugins.bundle.config`，这样 DSH 会按已安装第三方 bundle 分类。官方与本插件不能同时拥有 Auto；重复注册会明确报错。
-
-本地源码接入时，先把 `dsh-plugin-codex-guardian` 写入 profile 的 `dependencies` 和 `dsh.profile.bundles`，再在 profile patch 中用 `id: codex-guardian` 修改配置。bundle 已负责插入工具审查入口，不要再次插入同一行。控制页通过 `plugins.bundle.config` 关联该包；`plugins.item` 则固定进入宿主的“官方”区域。`desktop-replace.patch.yml` 提供官方 Auto 禁用与 bundle 配置覆盖示例。
-
-准备脚本只创建隔离配置，不修改正式桌面配置。经用户授权，本机正式桌面 profile 已另外安装并启用 0.3.1；迁移前的配置已备份。
-
-## 审查行为
-
-- 普通工具与 `run_code` 内层工具逐次审查。外层 PTC 传输使用 DSH 自身的能力约束，避免内外重复审查。
-- Guardian allow：继续经过其他宿主策略，然后执行。其他插件的 deny/ask/cancel 始终有效。
-- Guardian deny：不执行，返回理由与禁止换工具绕过的指令。
-- 网络、凭据、超时、上下文不足、额度或响应异常：请求人工审批。没有人工通道时，由 DSH 拒绝执行。
-- 取消：废弃迟到的允许结果。卸载：中止 Auto 代理和待审请求，恢复 workspace-write，移除 Auto 入口。
-- 工具过滤不形成免审白名单：被过滤的工具转人工确认。
-- 宿主策略 hook 本身抛错时阻止执行，要求修复集成；人工回退不会跳过未完成的宿主策略检查。
-
-DSH Auto 使用完整主机访问并逐次审查；Codex 原生 Auto-review 通常保留沙箱并审查越界操作。本插件保留 DSH 的 Auto 入口和执行方式，使用 Codex 的策略与审查模型，不复制 Codex 整个运行框架。
-
-## 策略、授权与网络
-
-策略使用 `data/guardian-policy.json` 中保存的 OpenAI 原文：`auto_review.policy_template` 填入 `auto_review.policy`，再追加 JSON 输出约定。该文件是策略快照，不会自动更新。
-
-输入包含真实工具 schema、完整参数、工作目录和按来源标记的可见上下文。宿主标记的人类消息、正确归属的直接父代理指令可以建立授权；项目指令约束范围，工具结果、插件文本、助手说明和压缩摘要不能扩大授权。超过参数/上下文上限时转人工，不截断待审动作后自动允许。
-
-Codex 来源每次审查重新只读获取 access token：配置文件、DSH_HOME store、原始 DSH store、Codex auth.json。不会使用 refresh token、刷新凭据或写回 store。DSH 来源通过宿主 `llm` 服务使用供应商自身配置和认证。
-
-Codex 请求为 `POST https://chatgpt.com/backend-api/codex/responses`，使用所选模型、`stream:true`、`store:false`。只有完整 SSE 完成事件且模型回显匹配时才接受判定。DSH 流必须正常完成，审查请求不提供执行工具。多个冲突判定、critical allow 或缺乏明确授权的 high allow 转人工。
-
-**免费计费尚未确认。** 直连可用不等于第三方调用免费或接口长期稳定；测试配置启用了额度保护和调用预算。
-
-## 配置
-
-配置放在 `codex-guardian` loader 行的 `config` 中。配置替换整个 config，不做深合并。
-
-| 参数 | 默认值 | 用途 |
-|---|---|---|
-| enabled | true | 是否挂载 Auto 集成 |
-| reviewEnabled | true | 暂停后转人工，保留 Auto 入口 |
-| reviewerSource | codex | codex / dsh |
-| reviewModel / reviewProvider | codex-auto-review / 空 | 审查模型；DSH 来源必填供应商 |
-| reasoningEffort | default | 使用模型默认或指定推理强度 |
-| policyFile | 包内策略 | 策略文件 |
-| credentialFile | 自动发现 | 只读凭据文件 |
-| transport | auto | auto / tunnel / fetch |
-| proxy | 127.0.0.1:7897 | CONNECT 代理 |
-| timeoutMs / totalTimeoutMs | 20000 / 28000 | 单次 / 整个审查期限 |
-| retries | 1 | 最多重试一次 |
-| maxArgsChars / maxContextChars | 32000 / 100000 | 完整参数 / 授权上下文上限 |
-| onlyTools / skipTools | [] / [] | 被过滤工具转人工 |
-| maxReviewsPerHour | 120 | 每个插件实例的每小时审查预算 |
-| usageGuard / usageStopPercent | false / 90 | 可选订阅额度检查；测试配置开启 |
-| breakerConsecutiveDenials | 3 | 同一会话轮次连续拒绝阈值 |
-| breakerWindow / breakerDenialsInWindow | 50 / 10 | 同轮次滚动拒绝阈值 |
-
-Codex 来源启用 usageGuard 后，额度未知、查询失败或窗口达到阈值都转人工；DSH 来源由供应商管理额度。日志只记录动作指纹、工具名和判定标签，不记录参数、凭据或原始模型回复。
-
-## 验证与文件
-
-下面的测试命令在项目源码目录运行；安装包仅包含运行代码、配置、准备脚本和验证记录。
+## 验证
 
 ```powershell
 npm test
 npm run test:legacy
-node test/live-review.mjs   # 真模型审批测试；不会执行待审命令
+node test/live-codexlike.mjs
 ```
 
-44 项自动测试及 20 项历史回归测试通过。0.3.0 控制页已在 rc2 原版桌面 profile 的浏览器界面验证，并实测 `deepseek-flash` 与自选 `gpt-6-luna` 两条审查来源；0.3.1 完成正式 profile 迁移，实际界面已确认位于“已安装”区域，详情页显示版本 0.3.1、控制页和运行中的审查组件。0.2.0 的普通工具、PTC、人工审批和真实 Guardian allow/deny 记录保留。
+自动回归覆盖旧兼容入口、新模式、一次批准重试、只读范围、链接逃逸、凭据保护和两种模型的工具循环。真实 Codex 模型测试包含允许、拒绝及两次只读调查后允许；所有待审命令均未执行。原版 DSH ToolRuntime、人工审批、PTC 与 filesystem 沙箱已验证。
 
-控制页证据和限制见 [notes/CONTROL-VERIFICATION.md](notes/CONTROL-VERIFICATION.md)；先前的执行链验证见 [notes/REPLACEMENT-VERIFICATION.md](notes/REPLACEMENT-VERIFICATION.md)。验证覆盖桌面原版运行时副本及正式桌面后端的浏览器界面；Electron 窗口内的人工批准按钮尚未点击验证。
-
-| 文件 | 职责 |
-|---|---|
-| src/index.js | 独立 Auto 插件入口与配置 |
-| src/auto-review.js | 执行闸口、取消、熔断、人工回退和卸载 |
-| src/review-context.js | 普通/PTC 动作验证、上下文来源归属 |
-| src/reviewer.js / transport.js | 固定 Guardian 路由、SSE 与代理 |
-| src/host-reviewer.js / model-catalog.js | DSH 模型路由与可选模型目录 |
-| src/control-state.js / control-service.js | 持久化配置、元数据记录和宿主认证 RPC |
-| client.js | DSH 原生插件控制页 |
-| src/prompt.js / data/guardian-policy.json | 策略原文与请求/判定格式 |
-| scripts/prepare-desktop.mjs | 全新隔离桌面配置和启动器 |
-| src/approvals.js | 保留的 0.1 审批 answerer，非 Auto 替代入口 |
-
-旧 CLI 0.1.7-alpha.2 的 Auto 使用 never 策略，无法提供本替代版要求的人工回退，插件拒绝在这种宿主上注册。历史审批-only 入口仍可通过 `dsh-plugin-codex-guardian/approvals` 使用。
+记录见 [notes/CODEXLIKE-VERIFICATION.md](notes/CODEXLIKE-VERIFICATION.md)。先前版本的控制页与执行链证据保留在其他验证记录中。Electron 原生窗口内的人工批准按钮尚未点击验证。

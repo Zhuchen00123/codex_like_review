@@ -2,14 +2,16 @@
 import { resolveConfig as approvalConfig } from './approvals.js'
 import { loadGuardianPolicy } from './prompt.js'
 import { createReviewer } from './reviewer.js'
-import { mountAutoReview } from './auto-review.js'
+import { mountCodexLikeReview } from './codexlike-review.js'
+import { createDenials } from './denials.js'
 import { createControlState, EDITABLE } from './control-state.js'
 import { createBudget } from './breaker.js'
 import { createHostReviewer } from './host-reviewer.js'
 
 export const name = 'codex-guardian'
 export const inject = ['approval', 'permissionPresets', 'sessions', 'tools', 'agents', 'llm', 'profileContext']
-export { mountAutoReview } from './auto-review.js'
+export { mountAutoReview } from './auto-review.js' // Compatibility entry for pre-0.4 integrations.
+export { mountCodexLikeReview, REVIEW_PRESET } from './codexlike-review.js'
 export const DEFAULTS = {
   ...EDITABLE,
   enabled: true, maxArgsChars: 32_000, maxContextChars: 100_000,
@@ -36,7 +38,7 @@ export function apply(ctx, config) {
 }
 async function install(ctx, settings, policyBundle) {
   const state = createControlState(settings, settings.controlFile ? { file: settings.controlFile } : {})
-  const budget = createBudget(state.current)
+  const budget = createBudget(state.current), denials = createDenials()
   let cachedKey, cachedReviewer
   const reviewer = { review(action) {
     const config = { ...(action.reviewConfig ?? state.current), policyBundle }
@@ -48,6 +50,6 @@ async function install(ctx, settings, policyBundle) {
     return cachedReviewer.review(action)
   } }
   const { installControlService } = await import('./control-service.js')
-  await installControlService(ctx, state, reviewer, budget)
-  return mountAutoReview(ctx, state.current, reviewer, { budget, onDecision: (entry) => state.record(entry) })
+  await installControlService(ctx, state, reviewer, budget, denials)
+  return mountCodexLikeReview(ctx, state.current, reviewer, { budget, denials, onDecision: (entry) => state.record(entry) })
 }

@@ -7,6 +7,7 @@ export const EDITABLE = {
   reviewEnabled: true, reviewerSource: 'codex', reviewModel: 'codex-auto-review', reviewProvider: '', reasoningEffort: 'default',
   timeoutMs: 20_000, totalTimeoutMs: 28_000, retries: 1, maxReviewsPerHour: 120,
   usageGuard: false, usageStopPercent: 90, breakerConsecutiveDenials: 3, breakerWindow: 50, breakerDenialsInWindow: 10,
+  allowInvestigation: true,
 }
 const INTEGER_LIMITS = { timeoutMs: [1, 120000], totalTimeoutMs: [1, 180000], retries: [0, 1], maxReviewsPerHour: [1, 10000], usageStopPercent: [1, 100], breakerConsecutiveDenials: [1, 100], breakerWindow: [1, 1000], breakerDenialsInWindow: [1, 1000] }
 export function validateSettings(patch) {
@@ -70,7 +71,7 @@ export function createControlState(base, options = {}) {
 function cleanRecord(record) {
   // Explicit allowlist: tool arguments, message text, model reasoning and credentials never enter audit storage.
   const clean = {}
-  for (const key of ['time', 'fingerprint', 'tool', 'outcome', 'risk', 'source', 'requestedModel', 'model', 'reason', 'elapsedMs', 'totalTokens']) {
+  for (const key of ['time', 'fingerprint', 'tool', 'outcome', 'risk', 'source', 'requestedModel', 'model', 'reason', 'elapsedMs', 'totalTokens', 'investigationCalls']) {
     const value = record?.[key]
     clean[key] = typeof value === 'string' ? value.slice(0, 160) : typeof value === 'number' && Number.isFinite(value) ? value : null
   }

@@ -13,6 +13,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { readCredential } from './credentials.js'
 import { createTransport, parseSse, TransportError } from './transport.js'
 import { buildInstructions, buildReviewInput, parseVerdict } from './prompt.js'
+import { createInvestigator, INVESTIGATION_INSTRUCTIONS } from './investigation.js'
 
 /** The route the Codex CLI uses for Guardian. */
 export const REVIEW_URL = 'https://chatgpt.com/backend-api/codex/responses'
@@ -54,10 +55,18 @@ export function fingerprint(toolName, argsText) {
  */
 export function readStream(body) {
   const text = []
+  const toolCalls = new Map(), started = new Set()
   let model
   let usage
   let failure
   let completed = false
+  function collect(item) {
+    if (item?.type !== 'function_call') return
+    if (typeof item.call_id !== 'string' || typeof item.name !== 'string' || typeof item.arguments !== 'string') { failure = { message: 'invalid function call' }; return }
+    const call = { type: 'function_call', call_id: item.call_id, name: item.name, arguments: item.arguments }
+    if (toolCalls.has(call.call_id) && JSON.stringify(toolCalls.get(call.call_id)) !== JSON.stringify(call)) failure = { message: 'conflicting function call' }
+    toolCalls.set(call.call_id, call)
+  }
   for (const payload of parseSse(body)) {
     let event
     try {
@@ -67,15 +76,22 @@ export function readStream(body) {
     }
     const type = event?.type
     if (type === 'response.output_text.delta' && typeof event.delta === 'string') text.push(event.delta)
+    else if (type === 'response.output_item.added' && event.item?.type === 'function_call') started.add(event.item.call_id)
+    else if (type === 'response.output_item.done') collect(event.item)
     else if (type === 'response.completed') {
       completed = true
       model = event.response?.model ?? model
       usage = event.response?.usage ?? usage
+      for (const item of event.response?.output ?? []) {
+        if (item.type === 'function_call') collect(item)
+        else if (item.type?.endsWith('_call')) failure = { message: 'unexpected built-in review tool' }
+      }
     } else if (type === 'response.failed' || type === 'response.incomplete' || type === 'response.error' || type === 'error') {
       failure = event.response?.error ?? event.error ?? event
     }
   }
-  return { text: text.join(''), model, usage, failure, completed }
+  if ([...started].some((id) => !toolCalls.has(id))) failure = { message: 'incomplete function call' }
+  return { text: text.join(''), toolCalls: [...toolCalls.values()], model, usage, failure, completed }
 }
 
 /**
@@ -144,21 +160,13 @@ export function createReviewer(config, logger, dependencies = {}) {
    * @param {number} timeoutMs
    * @param {AbortSignal|undefined} signal
    */
-  async function attempt(action, credential, timeoutMs, signal) {
+  async function attempt(action, credential, timeoutMs, signal, input, investigator) {
     const body = JSON.stringify({
       model,
       ...(config.reasoningEffort && config.reasoningEffort !== 'default' ? { reasoning: { effort: config.reasoningEffort } } : {}),
-      instructions,
-      input: buildReviewInput({
-        toolName: action.toolName,
-        argsText: action.argsText,
-        reason: action.reason,
-        trusted: action.trusted,
-        environment: action.environment,
-        maxTrustedChars: config.maxTrustedChars,
-        maxArgsChars: config.maxArgsChars,
-        context: action.context,
-      }),
+      instructions: buildInstructions(config.policyBundle, config.promptMode, action)+(investigator ? INVESTIGATION_INSTRUCTIONS : ''),
+      input,
+      ...(investigator ? { tools: investigator.tools.map((tool) => ({ type: 'function', ...tool })) } : {}),
       stream: true,
       store: false,
     })
@@ -203,6 +211,10 @@ export function createReviewer(config, logger, dependencies = {}) {
     }
     if (!stream.completed || stream.model !== model) {
       return { ok: false, retryable: false, reason: !stream.completed ? 'incomplete-stream' : 'wrong-model', meta }
+    }
+    if (stream.toolCalls.length) {
+      if (!investigator || parseVerdict(stream.text) || stream.toolCalls.length > 6) return { ok: false, retryable: false, reason: 'unexpected-review-tool-call', meta }
+      return { ok: true, toolCalls: stream.toolCalls, meta: { ...meta, model: stream.model, totalTokens: stream.usage?.total_tokens } }
     }
     const verdict = parseVerdict(stream.text)
     if (verdict === undefined) {
@@ -251,6 +263,10 @@ export function createReviewer(config, logger, dependencies = {}) {
       }
 
       const attempts = Math.max(1, Math.min(2, (config.retries ?? 1) + 1))
+      const investigator = createInvestigator(action, config)
+      const input = buildReviewInput({ ...action, maxTrustedChars: config.maxTrustedChars, maxArgsChars: config.maxArgsChars })
+      const started = Date.now()
+      let rounds = 0, tokens = 0, tokenKnown = false
       let last = { status: 'unavailable', reason: 'not-attempted' }
       for (let attemptIndex = 0; attemptIndex < attempts; attemptIndex += 1) {
         const remaining = deadline - Date.now()
@@ -260,7 +276,7 @@ export function createReviewer(config, logger, dependencies = {}) {
         }
         let result
         try {
-          result = await attempt(action, credential, Math.min(config.timeoutMs ?? 20_000, remaining), action.signal)
+          result = await attempt(action, credential, Math.min(config.timeoutMs ?? 20_000, remaining), action.signal, input, investigator)
         } catch (error) {
           const code = error instanceof TransportError ? error.code : error?.code
           const aborted = code === 'ABORT_ERR' || action.signal?.aborted === true
@@ -271,7 +287,19 @@ export function createReviewer(config, logger, dependencies = {}) {
             detail: sanitize(error?.message ?? error),
           }
         }
-        if (result.ok) return { status: 'verdict', verdict: result.verdict, meta: result.meta }
+        if (result.ok) {
+          if (Number.isFinite(result.meta?.totalTokens)) { tokens += result.meta.totalTokens; tokenKnown = true }
+          if (result.verdict) return { status: 'verdict', verdict: result.verdict, meta: { ...result.meta, elapsedMs: Date.now()-started, totalTokens: tokenKnown ? tokens : undefined, investigationCalls: investigator?.calls ?? 0 } }
+          if (++rounds > 3) return { status: 'unavailable', reason: 'investigation-limit' }
+          try {
+            const outputs = []
+            for (const call of result.toolCalls) outputs.push({ type: 'function_call_output', call_id: call.call_id, output: JSON.stringify({ role: 'untrusted-evidence', result: await investigator.execute(call.name, call.arguments, action.signal) }) })
+            input.push(...result.toolCalls, ...outputs)
+          } catch (error) { return { status: 'unavailable', reason: action.signal?.aborted ? 'aborted' : 'invalid-investigation' } }
+          // Tool rounds are not transport retries; each round still has bounded retries.
+          attemptIndex = -1
+          continue
+        }
         last = { status: 'unavailable', reason: result.reason, detail: result.detail, meta: result.meta }
         if (!result.retryable) break
         logger?.debug?.(`codex-guardian: attempt ${attemptIndex + 1} failed (${result.reason}); retrying once`)

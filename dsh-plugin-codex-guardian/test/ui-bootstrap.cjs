@@ -1,7 +1,7 @@
 // Serve an unchanged copy of the installed desktop runtime for isolated browser QA.
 const path = require('node:path')
 const home = path.resolve(process.env.DSH_HOME || '')
-if (home !== path.resolve(__dirname, '../..', '.dsh-guardian-ui')) throw new Error('Only the isolated workspace UI test home is accepted')
+if (!['.dsh-guardian-ui', '.dsh-codexlike-ui'].some((name) => home === path.resolve(__dirname, '../..', name))) throw new Error('Only the isolated workspace UI test homes are accepted')
 const runtime = path.resolve(__dirname, '../../.dsh-guardian-runtime')
 const installAnchor = path.join(runtime, 'node_modules/@deepseek-ai/dsh/package.json')
 console.log('[guardian-ui] loading boot modules')
@@ -12,7 +12,8 @@ const profile = loadProfileDirectory('dsh', path.join(home, 'profiles/desktop'),
 console.log('[guardian-ui] booting isolated desktop profile')
 const keepalive = setInterval(() => {}, 1000)
 const checkingMount = process.argv.includes('--mount-check')
-runProfile({ environment: loadLayeredEnv('dsh'), profile: 'desktop', resolvedProfile: { profile, installAnchor }, patchFiles: checkingMount ? [path.join(__dirname, 'mount-probe.patch.yml')] : [], args: checkingMount ? [] : ['--no-open', '--port', '19389'] }).then((app) => {
+const checkingBoundary = process.argv.includes('--boundary-check') || process.argv.includes('--ui-qa')
+runProfile({ environment: loadLayeredEnv('dsh'), profile: 'desktop', resolvedProfile: { profile, installAnchor }, patchFiles: checkingMount ? [path.join(__dirname, 'mount-probe.patch.yml')] : checkingBoundary ? [path.join(__dirname, 'codexlike-host.patch.yml')] : [], args: checkingMount ? [] : ['--no-open', '--port', checkingBoundary ? '19390' : '19389'] }).then((app) => {
   clearInterval(keepalive)
   console.log('[guardian-ui] profile booted; guardian service='+Boolean(app.ctx.get('guardianControl')))
 }, (error) => { console.error(error); clearInterval(keepalive); process.exitCode = 1 })

@@ -65,9 +65,12 @@ export function loadGuardianPolicy(policyFile) {
  * @param {'policy_template'|'policy_only'} [mode]
  * @returns {string}
  */
-export function buildInstructions(bundle, mode = 'policy_template') {
+export function buildInstructions(bundle, mode = 'policy_template', action) {
   const body = mode === 'policy_only' ? bundle.policy : bundle.template.replace(TENANT_PLACEHOLDER, bundle.policy)
-  return `${body}\n${OUTPUT_CONTRACT}`
+  const computer = action && /(?:cua|computer|browser|playwright|node_repl|nodeRepl)/i.test(action.toolName+' '+action.argsText)
+  const specialized = computer && bundle.nodeReplPolicy ? '\n'+bundle.nodeReplPolicy : ''
+  const override = action?.context?.explicit_user_override ? '\n# Explicit user retry approval\nThe harness-validated explicit_user_override records a human approval for this exact action and one retry in unchanged authorization context. Treat it as high user authorization for that action. It cannot override critical risk or an absolute deny rule; reassess the risk using the facts.\n' : ''
+  return `${body}${specialized}${override}\n${OUTPUT_CONTRACT}`
 }
 
 /**

@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 
 // The host's authenticated Connection/Gateway owns access and request cancellation.
 // No additional HTTP listener or credential-bearing settings endpoint is created.
-export async function installControlService(ctx, state, reviewer, budget) {
+export async function installControlService(ctx, state, reviewer, budget, denials) {
   // Resolve host-owned types from its installation anchor, including source-file mounts.
   const anchor = ctx.profileContext?.installAnchor ?? import.meta.url
   const { Remote, RemoteError, TypertRemoteService } = createRequire(anchor)('@deepseek-ai/dsh-typert-protocol')
@@ -13,12 +13,18 @@ export async function installControlService(ctx, state, reviewer, budget) {
   ctx.effect(() => () => lifetime.abort())
   function safeError(error) {
     const message = String(error?.message ?? '')
-    const known = /^(settings-conflict|provider-required|provider-unavailable|invalid-breaker-window|invalid-settings|invalid-setting:[A-Za-z]+|unknown-setting:[A-Za-z]+|probe-busy|probe-cooldown|budget-exhausted|catalog-timeout)$/
+    const known = /^(settings-conflict|provider-required|provider-unavailable|invalid-breaker-window|invalid-settings|invalid-setting:[A-Za-z]+|unknown-setting:[A-Za-z]+|probe-busy|probe-cooldown|budget-exhausted|catalog-timeout|denial-expired|denial-already-approved)$/
     return new RemoteError('GUARDIAN_CONTROL', known.test(message) ? message : 'control-operation-failed', {})
   }
   class GuardianControl extends TypertRemoteService {
     constructor() { super(ctx, 'guardianControl'); for (const init of initializers) init.call(this) }
-    status() { return { ...state.view(), budgetUsed: budget.used(), defaults: (this.defaults) } }
+    status() { return { ...state.view(), budgetUsed: budget.used(), defaults: (this.defaults), mode: 'codexlikereview', denials: denials?.list() ?? [] } }
+    denial(id) {
+      try { if (typeof id !== 'string') throw new Error('invalid-settings'); return denials.detail(id) } catch (error) { throw safeError(error) }
+    }
+    approveRetry(id) {
+      try { if (typeof id !== 'string') throw new Error('invalid-settings'); denials.approve(id); return this.status() } catch (error) { throw safeError(error) }
+    }
     async models(refresh, signal) {
       if (typeof refresh !== 'boolean') throw safeError(new Error('invalid-settings'))
       const bounded = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : []), AbortSignal.timeout(20000)])
@@ -57,6 +63,6 @@ export async function installControlService(ctx, state, reviewer, budget) {
   }
   const { EDITABLE } = await import('./control-state.js')
   GuardianControl.prototype.defaults = { ...EDITABLE }
-  for (const name of ['status', 'models', 'save', 'probe', 'clearHistory']) Remote(GuardianControl.prototype[name], { kind: 'method', name, private: false, static: false, addInitializer(fn) { initializers.push(fn) } })
+  for (const name of ['status', 'models', 'save', 'probe', 'clearHistory', 'denial', 'approveRetry']) Remote(GuardianControl.prototype[name], { kind: 'method', name, private: false, static: false, addInitializer(fn) { initializers.push(fn) } })
   return new GuardianControl()
 }

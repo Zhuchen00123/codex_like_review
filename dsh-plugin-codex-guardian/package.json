@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-codex-guardian",
-  "version": "0.3.1",
-  "description": "Independent DSH Auto review integration using Codex Guardian policy and codex-auto-review.",
+  "version": "0.4.0",
+  "description": "Independent DSH codexlikereview mode with workspace sandbox, Codex policy and read-only investigation.",
   "type": "module",
   "main": "./src/index.js",
   "exports": {
@@ -21,6 +21,7 @@
     "scripts",
     "notes/REPLACEMENT-VERIFICATION.md",
     "notes/CONTROL-VERIFICATION.md",
+    "notes/CODEXLIKE-VERIFICATION.md",
     "notes/control-page.jpg",
     "notes/desktop-host-test.txt",
     "notes/desktop-mount-test.txt",
@@ -28,7 +29,7 @@
     "README.md"
   ],
   "scripts": {
-    "test": "node --test test/auto-review.test.mjs test/reviewer.test.mjs test/control.test.mjs",
+    "test": "node --test test/auto-review.test.mjs test/reviewer.test.mjs test/control.test.mjs test/codexlike.test.mjs test/investigation.test.mjs",
     "test:legacy": "node test/plugin-smoke.mjs --offline",
     "probe": "node test/route-probe.mjs"
   },

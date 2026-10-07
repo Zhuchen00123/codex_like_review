@@ -1,0 +1,13 @@
+- id: desktop-product-telemetry
+  disabled: true
+- id: hmr
+  disabled: true
+- id: codex-guardian
+  config:
+    enabled: false
+- id: tools
+  config:
+    mode: both
+- insert:
+    - id: codexlike-host-probe
+      name: ./codexlike-host-plugin.mjs

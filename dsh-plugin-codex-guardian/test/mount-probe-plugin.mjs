@@ -15,21 +15,23 @@ export function apply(ctx) {
   const timer = setInterval(async () => {
     ticks++
     const entry = find(root)
-    if (entry?.fiber?.state === 2 && ctx.permissionPresets?.names.includes('auto')) {
+    if (entry?.fiber?.state === 2 && ctx.permissionPresets?.names.includes('codexlikereview')) {
       clearInterval(timer)
       try {
-        console.log('[guardian-mount] shipped codex-guardian fiber=ACTIVE; Auto registered')
+        assert.equal(ctx.permissionPresets.resolve('codexlikereview').sandbox, 'workspace-write')
+        assert.equal(ctx.permissionPresets.resolve('codexlikereview').approval, 'ask')
+        console.log('[guardian-mount] shipped codex-guardian fiber=ACTIVE; codexlikereview registered with workspace-write/ask')
         const handle = await ctx.agents.create({ sessionId: `session-${randomUUID()}`, meta: { cwd: process.cwd() } })
-        ctx.permissionPresets.set(handle.agent.session, 'auto')
+        ctx.permissionPresets.set(handle.agent.session, 'codexlikereview')
         await entry.fiber.dispose()
         assert.equal(ctx.permissionPresets.current(handle.agent.session), 'workspace-write')
-        assert.ok(!ctx.permissionPresets.names.includes('auto'))
+        assert.ok(!ctx.permissionPresets.names.includes('codexlikereview'))
         await handle.dispose()
-        console.log('[guardian-mount] shipped plugin fiber disposal restored workspace-write and removed Auto; PASS')
+        console.log('[guardian-mount] shipped plugin fiber disposal restored workspace-write and removed codexlikereview; PASS')
         process.exit(0)
       } catch (error) { console.error('[guardian-mount] FAIL', error); process.exit(1) }
     } else if (ticks === 100) {
-      console.error('[guardian-mount] FAIL: Auto integration not active')
+      console.error('[guardian-mount] FAIL: codexlikereview integration not active')
       clearInterval(timer); process.exit(1)
     }
   }, 25)
