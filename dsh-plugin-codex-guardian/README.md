@@ -20,11 +20,11 @@ powershell -ExecutionPolicy Bypass -File F:/codexprojects/codex_like_review/.dsh
 node scripts/prepare-desktop.mjs F:/your-workspace/guardian-test-home
 ```
 
-脚本使用绝对路径加载 `src/index.js`，不需要 pnpm 或符号链接。桌面 profile 由 Electron 管理，不要用系统旧版 CLI 的 `dsh --profile desktop` 启动或安装。
+脚本把本包注册为 profile 的本地 dependency 和 bundle，并创建目录链接（Windows 使用 junction），不需要运行 pnpm 安装。桌面 profile 由 Electron 管理，不要用系统旧版 CLI 的 `dsh --profile desktop` 启动或安装。
 
 ## 插件控制页
 
-已接入本地源码的配置升级到 0.3.1 后，退出并重启 DSH 即可加载控制页。插件作为 profile 的已安装第三方 bundle 出现在插件页的“已安装”区域；打开 **Codex Guardian** 详情页即可进入控制页。
+已按下文注册 dependency 和 bundle 的配置升级到 0.3.1 后，退出并重启 DSH 即可加载控制页。旧版只通过源码路径插入插件的配置，需要先迁移为 bundle 安装方式。插件出现在插件页的“已安装”区域；打开 **Codex Guardian** 详情页即可进入控制页。
 
 1. 选择 **Codex 订阅模型** 或 **DSH 已配置模型**。DSH 来源需要选择供应商；模型列表读取宿主已注册模型，Codex 列表优先读取本机目录缓存，可点击刷新。两种来源都允许手动填写模型 ID。
 2. 推理强度默认使用模型默认值。模型不支持所选强度时会回退人工，建议先使用默认并测试。
@@ -43,7 +43,7 @@ node scripts/prepare-desktop.mjs F:/your-workspace/guardian-test-home
 
 本地源码接入时，先把 `dsh-plugin-codex-guardian` 写入 profile 的 `dependencies` 和 `dsh.profile.bundles`，再在 profile patch 中用 `id: codex-guardian` 修改配置。bundle 已负责插入工具审查入口，不要再次插入同一行。控制页通过 `plugins.bundle.config` 关联该包；`plugins.item` 则固定进入宿主的“官方”区域。`desktop-replace.patch.yml` 提供官方 Auto 禁用与 bundle 配置覆盖示例。
 
-正式桌面配置尚未自动切换。本次宿主测试与新状态都位于工作区中。
+准备脚本只创建隔离配置，不修改正式桌面配置。经用户授权，本机正式桌面 profile 已另外安装并启用 0.3.1；迁移前的配置已备份。
 
 ## 审查行为
 
@@ -105,9 +105,9 @@ npm run test:legacy
 node test/live-review.mjs   # 真模型审批测试；不会执行待审命令
 ```
 
-44 项自动测试及 20 项历史回归测试通过。0.3.0 控制页已在 rc2 原版桌面 profile 的浏览器界面验证，并实测 `deepseek-flash` 与自选 `gpt-6-luna` 两条审查来源；0.3.1 已改为已安装第三方 bundle 分类并完成正式 profile 的原子迁移。0.2.0 的普通工具、PTC、人工审批和真实 Guardian allow/deny 记录保留。
+44 项自动测试及 20 项历史回归测试通过。0.3.0 控制页已在 rc2 原版桌面 profile 的浏览器界面验证，并实测 `deepseek-flash` 与自选 `gpt-6-luna` 两条审查来源；0.3.1 完成正式 profile 迁移，实际界面已确认位于“已安装”区域，详情页显示版本 0.3.1、控制页和运行中的审查组件。0.2.0 的普通工具、PTC、人工审批和真实 Guardian allow/deny 记录保留。
 
-控制页证据和限制见 [notes/CONTROL-VERIFICATION.md](notes/CONTROL-VERIFICATION.md)；先前的执行链验证见 [notes/REPLACEMENT-VERIFICATION.md](notes/REPLACEMENT-VERIFICATION.md)。当前测试使用桌面原版运行时副本和浏览器界面；Electron 窗口内的人工批准按钮尚未点击验证。
+控制页证据和限制见 [notes/CONTROL-VERIFICATION.md](notes/CONTROL-VERIFICATION.md)；先前的执行链验证见 [notes/REPLACEMENT-VERIFICATION.md](notes/REPLACEMENT-VERIFICATION.md)。验证覆盖桌面原版运行时副本及正式桌面后端的浏览器界面；Electron 窗口内的人工批准按钮尚未点击验证。
 
 | 文件 | 职责 |
 |---|---|

@@ -1,6 +1,6 @@
 # 0.3.1 模型选择、插件控制页与第三方分类验证
 
-2026-10-06；只修改项目源码与工作区隔离测试目录，正式 DSH profile、凭据、官方插件和订阅插件未修改。
+2026-10-06 至 2026-10-07。先在工作区隔离配置验证，随后经用户授权安装到正式 DSH profile，并迁移为已安装第三方 bundle。凭据、官方插件和订阅插件的源码未修改。
 
 ## 自动验证
 
@@ -39,7 +39,13 @@
 
 正式 profile 迁移验证：Guardian 0.3.1 目录安装到 `C:/Users/15185/.dsh/plugins/dsh-plugin-codex-guardian/0.3.1`，profile 通过 dependency、bundle 和 junction 注册；迁移前已有的其他 profile patch 行逐项保持不变，只把 Guardian 的源码直插行替换成 bundle 配置。旧配置保存为 `cordis.patch.yml.bak-guardian-managed-*` 与 `package.json.bak-guardian-managed-*`。
 
-分类迁移后的正式桌面重载受本轮 Codex 自动审批额度限制，未能再通过浏览器刷新取得第二张界面快照；静态 bundle 清单、locale 元数据、patch 组成和已有 DSH 实例中的控制服务均已检查。重启 DSH 后应从“已安装”区域打开 Guardian 详情页。
+2026-10-07，正式桌面重启后，通过其端口 19387 的认证浏览器界面确认：
+
+- Guardian 卡片位于“已安装”区域，官方区域中没有 Guardian；卡片启用开关已开启。
+- 从卡片打开详情页，显示版本 **0.3.1**、第三方插件说明及卸载入口。
+- 原生插件控制页正常渲染，已保存来源为 Codex、模型为 `codex-auto-review`，自动审查已启用。
+- “包含的组件”显示 `codex-guardian` / `dsh-plugin-codex-guardian`，共 1 个组件、1 个运行中。
+- 浏览器刷新后的错误和警告日志为空。分类截图保留在本机验证产物中；其中包含其他已安装插件的信息，不随仓库发布。
 
 ![实际控制页和 Guardian 连接测试](control-page.jpg)
 
